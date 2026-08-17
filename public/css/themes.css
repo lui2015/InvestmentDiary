@@ -1,0 +1,72 @@
+/* themes.css - 主题（Design Token 覆盖）。切换 <html data-theme> 即可整站换肤 */
+
+/* 默认 / 浅色（light）已在 base.css 定义，这里作为 fallback 不重复 */
+
+/* 暗色 dark */
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-2: #232733;
+  --text: #e6e8ef;
+  --text-dim: #8b90a0;
+  --primary: #6366f1;
+  --primary-contrast: #ffffff;
+  --border: #2a2e3a;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --shadow: 0 2px 12px rgba(0,0,0,.4);
+}
+
+/* 赛博朋克 cyberpunk */
+[data-theme="cyberpunk"] {
+  --bg: #0a0612;
+  --surface: #150a26;
+  --surface-2: #1f0f3d;
+  --text: #e9e6ff;
+  --text-dim: #9d8fd6;
+  --primary: #ff2bd6;
+  --primary-contrast: #0a0612;
+  --border: #4a1f7a;
+  --success: #00f0ff;
+  --danger: #ff3b6b;
+  --warning: #ffe600;
+  --radius: 4px;
+  --shadow: 0 0 14px rgba(255,43,214,.35);
+  --font: "Courier New", "PingFang SC", monospace;
+}
+[data-theme="cyberpunk"] body { background-image: linear-gradient(rgba(255,43,214,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,.05) 1px, transparent 1px); background-size: 28px 28px; }
+[data-theme="cyberpunk"] .card, [data-theme="cyberpunk"] .stat, [data-theme="cyberpunk"] .modal {
+  border: 1px solid var(--primary); box-shadow: 0 0 12px rgba(255,43,214,.4), inset 0 0 8px rgba(0,240,255,.15);
+}
+[data-theme="cyberpunk"] .btn { border-radius: 2px; box-shadow: 0 0 10px rgba(255,43,214,.6); letter-spacing: 1px; }
+[data-theme="cyberpunk"] .nav-item.active { box-shadow: 0 0 10px rgba(0,240,255,.6); }
+[data-theme="cyberpunk"] .brand-name { color: var(--success); text-shadow: 0 0 8px var(--success); }
+
+/* 漫画风格 comic */
+[data-theme="comic"] {
+  --bg: #fff7e6;
+  --surface: #ffffff;
+  --surface-2: #fff0c2;
+  --text: #2b2b2b;
+  --text-dim: #7a6a4f;
+  --primary: #ff6b35;
+  --primary-contrast: #fff;
+  --border: #2b2b2b;
+  --success: #2e9e3f;
+  --danger: #e23b3b;
+  --warning: #f4b400;
+  --radius: 14px;
+  --shadow: 4px 4px 0 #2b2b2b;
+  --font: "Comic Sans MS", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+[data-theme="comic"] .card, [data-theme="comic"] .stat, [data-theme="comic"] .modal, [data-theme="comic"] .table th, [data-theme="comic"] input, [data-theme="comic"] select, [data-theme="comic"] textarea {
+  border: 2.5px solid var(--border); border-radius: 14px;
+}
+[data-theme="comic"] .btn { border: 2.5px solid var(--border); border-radius: 14px; box-shadow: 3px 3px 0 var(--border); }
+[data-theme="comic"] .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--border); }
+[data-theme="comic"] .nav-item.active { border: 2.5px solid var(--border); background: var(--warning); color: #2b2b2b; transform: rotate(-1.5deg); }
+[data-theme="comic"] .badge { border: 2px solid var(--border); }
+
+/* 跟随系统 auto -> 由 JS 解析为 light/dark */
+[data-theme="auto"] { /* 默认等同 light，JS 会再套用系统值 */ }

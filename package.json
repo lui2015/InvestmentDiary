@@ -1,0 +1,20 @@
+{
+  "name": "investment-diary",
+  "version": "1.0.0",
+  "description": "投资日记 - 记录股票/基金/期货投资行为、统计盈亏、止盈止损提醒、投资复盘",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

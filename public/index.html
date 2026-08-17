@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4f46e5" />
+  <title>投资日记</title>
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/themes.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- 侧边栏（桌面） -->
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><span class="logo">📓</span><span class="brand-name">投资日记</span></div>
+      <nav class="side-nav" id="sideNav"></nav>
+      <div class="side-foot">
+        <button class="btn ghost block" id="themeBtn">🎨 主题</button>
+        <button class="btn ghost block" id="logoutBtn">退出登录</button>
+      </div>
+    </aside>
+
+    <!-- 主区域 -->
+    <div class="main">
+      <header class="topbar">
+        <h1 class="page-title" id="pageTitle">总览</h1>
+        <button class="icon-btn only-mobile" id="themeBtn2">🎨</button>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+
+    <!-- 底部导航（手机） -->
+    <nav class="bottom-nav only-mobile" id="bottomNav"></nav>
+  </div>
+
+  <!-- 主题切换弹窗 -->
+  <div class="modal-mask" id="themeModal" hidden>
+    <div class="modal">
+      <div class="modal-head"><h3>选择主题</h3><button class="icon-btn" id="themeClose">✕</button></div>
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+  </div>
+
+  <!-- 通用弹窗（表单/确认） -->
+  <div class="modal-mask" id="formModal" hidden>
+    <div class="modal">
+      <div class="modal-head"><h3 id="formTitle">标题</h3><button class="icon-btn" id="formClose">✕</button></div>
+      <div class="modal-body" id="formBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="./js/api.js"></script>
+  <script src="./js/theme.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
