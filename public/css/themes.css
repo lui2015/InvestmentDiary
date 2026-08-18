@@ -1,47 +1,82 @@
 /* themes.css - 主题（Design Token 覆盖）。切换 <html data-theme> 即可整站换肤 */
 
-/* 默认 / 浅色（light）已在 base.css 定义，这里作为 fallback 不重复 */
-
-/* 暗色 dark */
-[data-theme="dark"] {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface-2: #232733;
-  --text: #e6e8ef;
-  --text-dim: #8b90a0;
-  --primary: #6366f1;
+/* 浅色 / 经典（覆盖默认深色，呈现干净科技浅色） */
+[data-theme="light"] {
+  --bg: #eef2f9;
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-2: rgba(245, 248, 253, 0.9);
+  --text: #1b2440;
+  --text-dim: #5b6680;
+  --primary: #2563eb;
+  --primary-2: #6366f1;
   --primary-contrast: #ffffff;
-  --border: #2a2e3a;
-  --success: #34d399;
-  --danger: #f87171;
-  --warning: #fbbf24;
-  --shadow: 0 2px 12px rgba(0,0,0,.4);
+  --border: rgba(30, 60, 120, 0.14);
+  --success: #0f9d6b;
+  --danger: #e0415b;
+  --warning: #d97706;
+  --shadow: 0 10px 26px -14px rgba(30, 60, 120, 0.35);
+  --glow: 0 0 14px rgba(37, 99, 235, 0.2);
+  --font-display: "Orbitron", "Inter", "PingFang SC", system-ui, sans-serif;
+}
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(1000px 560px at 85% -10%, rgba(99, 102, 241, 0.12), transparent 60%),
+    radial-gradient(820px 480px at -5% 5%, rgba(37, 99, 235, 0.1), transparent 55%),
+    linear-gradient(rgba(30, 60, 120, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 60, 120, 0.04) 1px, transparent 1px);
+}
+[data-theme="light"] .sidebar,
+[data-theme="light"] .topbar { background: rgba(255, 255, 255, 0.82); }
+[data-theme="light"] .login-card,
+[data-theme="light"] .modal { background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(244,248,253,.97)); color: var(--text); }
+[data-theme="light"] .bottom-nav { background: rgba(255, 255, 255, 0.95); }
+[data-theme="light"] input, [data-theme="light"] select, [data-theme="light"] textarea { background: rgba(255, 255, 255, 0.7); }
+
+/* 暗色 dark（更深邃的科技蓝黑，区别于默认） */
+[data-theme="dark"] {
+  --bg: #05080f;
+  --surface: rgba(15, 22, 38, 0.74);
+  --surface-2: rgba(24, 33, 54, 0.62);
+  --primary: #38bdf8;
+  --primary-2: #818cf8;
+  --border: rgba(120, 160, 220, 0.18);
 }
 
 /* 赛博朋克 cyberpunk */
 [data-theme="cyberpunk"] {
   --bg: #0a0612;
-  --surface: #150a26;
-  --surface-2: #1f0f3d;
+  --surface: rgba(21, 10, 38, 0.8);
+  --surface-2: rgba(31, 15, 61, 0.7);
   --text: #e9e6ff;
   --text-dim: #9d8fd6;
   --primary: #ff2bd6;
+  --primary-2: #00f0ff;
   --primary-contrast: #0a0612;
-  --border: #4a1f7a;
+  --border: rgba(255, 43, 214, 0.34);
   --success: #00f0ff;
   --danger: #ff3b6b;
   --warning: #ffe600;
-  --radius: 4px;
-  --shadow: 0 0 14px rgba(255,43,214,.35);
+  --radius: 8px;
+  --shadow: 0 0 16px rgba(255, 43, 214, 0.3);
+  --glow: 0 0 18px rgba(255, 43, 214, 0.5);
+  --font-display: "Orbitron", "Courier New", monospace;
   --font: "Courier New", "PingFang SC", monospace;
 }
-[data-theme="cyberpunk"] body { background-image: linear-gradient(rgba(255,43,214,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,240,255,.05) 1px, transparent 1px); background-size: 28px 28px; }
-[data-theme="cyberpunk"] .card, [data-theme="cyberpunk"] .stat, [data-theme="cyberpunk"] .modal {
-  border: 1px solid var(--primary); box-shadow: 0 0 12px rgba(255,43,214,.4), inset 0 0 8px rgba(0,240,255,.15);
+[data-theme="cyberpunk"] body {
+  background-image:
+    radial-gradient(1000px 560px at 80% -10%, rgba(255, 43, 214, 0.14), transparent 60%),
+    radial-gradient(800px 460px at -5% 10%, rgba(0, 240, 255, 0.12), transparent 55%),
+    linear-gradient(rgba(0, 240, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.06) 1px, transparent 1px);
+  background-size: auto, auto, 28px 28px, 28px 28px;
 }
-[data-theme="cyberpunk"] .btn { border-radius: 2px; box-shadow: 0 0 10px rgba(255,43,214,.6); letter-spacing: 1px; }
-[data-theme="cyberpunk"] .nav-item.active { box-shadow: 0 0 10px rgba(0,240,255,.6); }
-[data-theme="cyberpunk"] .brand-name { color: var(--success); text-shadow: 0 0 8px var(--success); }
+[data-theme="cyberpunk"] .card,
+[data-theme="cyberpunk"] .stat-card,
+[data-theme="cyberpunk"] .modal { border: 1px solid var(--primary); box-shadow: 0 0 14px rgba(255, 43, 214, 0.38), inset 0 0 10px rgba(0, 240, 255, 0.12); }
+[data-theme="cyberpunk"] .btn { box-shadow: 0 0 10px rgba(255, 43, 214, 0.55); letter-spacing: 1px; }
+[data-theme="cyberpunk"] .nav-item.active { box-shadow: 0 0 12px rgba(0, 240, 255, 0.55); }
+[data-theme="cyberpunk"] .brand-name { color: var(--success); text-shadow: 0 0 10px var(--success); }
+[data-theme="cyberpunk"] .login-card::before { background: radial-gradient(260px 120px at 50% -10%, rgba(255,43,214,0.2), transparent 70%); }
 
 /* 漫画风格 comic */
 [data-theme="comic"] {
@@ -51,6 +86,7 @@
   --text: #2b2b2b;
   --text-dim: #7a6a4f;
   --primary: #ff6b35;
+  --primary-2: #ffb703;
   --primary-contrast: #fff;
   --border: #2b2b2b;
   --success: #2e9e3f;
@@ -58,15 +94,21 @@
   --warning: #f4b400;
   --radius: 14px;
   --shadow: 4px 4px 0 #2b2b2b;
+  --glow: 3px 3px 0 #2b2b2b;
   --font: "Comic Sans MS", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Comic Sans MS", "PingFang SC", sans-serif;
 }
-[data-theme="comic"] .card, [data-theme="comic"] .stat, [data-theme="comic"] .modal, [data-theme="comic"] .table th, [data-theme="comic"] input, [data-theme="comic"] select, [data-theme="comic"] textarea {
-  border: 2.5px solid var(--border); border-radius: 14px;
-}
+[data-theme="comic"] body { background-image: none; background-color: var(--bg); }
+[data-theme="comic"] .card, [data-theme="comic"] .stat-card, [data-theme="comic"] .modal,
+[data-theme="comic"] .login-card, [data-theme="comic"] .table th, [data-theme="comic"] input,
+[data-theme="comic"] select, [data-theme="comic"] textarea { border: 2.5px solid var(--border); border-radius: 14px; }
+[data-theme="comic"] .card:hover, [data-theme="comic"] .stat-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #2b2b2b; }
 [data-theme="comic"] .btn { border: 2.5px solid var(--border); border-radius: 14px; box-shadow: 3px 3px 0 var(--border); }
 [data-theme="comic"] .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--border); }
 [data-theme="comic"] .nav-item.active { border: 2.5px solid var(--border); background: var(--warning); color: #2b2b2b; transform: rotate(-1.5deg); }
 [data-theme="comic"] .badge { border: 2px solid var(--border); }
+[data-theme="comic"] .brand-logo, [data-theme="comic"] .login-logo { box-shadow: 3px 3px 0 #2b2b2b; }
+[data-theme="comic"] .sidebar, [data-theme="comic"] .topbar, [data-theme="comic"] .bottom-nav { background: #fff7e6; }
 
 /* 跟随系统 auto -> 由 JS 解析为 light/dark */
-[data-theme="auto"] { /* 默认等同 light，JS 会再套用系统值 */ }
+[data-theme="auto"] { /* 默认等同 :root，JS 会再套用系统值 */ }

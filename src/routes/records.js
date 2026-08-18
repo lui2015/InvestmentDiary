@@ -24,12 +24,15 @@ router.delete('/accounts/:id', (req, res) => {
 
 // ---------- 标的 ----------
 router.get('/symbols', (req, res) => {
-  const rows = db.prepare('SELECT * FROM symbols WHERE user_id = ? ORDER BY created_at DESC').all(uid(req));
+  // 自动为用户初始化预设投资标的（仅首次，已有标的则跳过）
+  const { seedDefaultSymbols } = require('../db');
+  seedDefaultSymbols(uid(req));
+  const rows = db.prepare('SELECT * FROM symbols WHERE user_id = ? ORDER BY category, created_at').all(uid(req));
   res.json({ code: 0, data: rows });
 });
 router.post('/symbols', (req, res) => {
   const { category, code, name, market, direction, leverage, multiplier, extra } = req.body || {};
-  if (!name || !['stock', 'fund', 'future'].includes(category))
+  if (!name || !['stock', 'fund', 'future', 'bond'].includes(category))
     return res.status(400).json({ code: 1, message: '标的名称与合法品类必填' });
   const info = db.prepare(`INSERT INTO symbols
     (user_id, category, code, name, market, direction, leverage, multiplier, extra, created_at)

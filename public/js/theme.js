@@ -1,8 +1,8 @@
 // theme.js - 主题管理
 const Theme = {
   THEMES: [
-    { id: 'light', name: '默认（浅色）', preview: 'linear-gradient(135deg,#fff,#eef)' },
-    { id: 'dark', name: '暗色', preview: 'linear-gradient(135deg,#1a1d27,#0f1117)' },
+    { id: 'dark', name: '科技深蓝（默认）', preview: 'linear-gradient(135deg,#38bdf8,#818cf8)' },
+    { id: 'light', name: '浅色经典', preview: 'linear-gradient(135deg,#fff,#eef)' },
     { id: 'cyberpunk', name: '赛博朋克', preview: 'linear-gradient(135deg,#ff2bd6,#00f0ff)' },
     { id: 'comic', name: '漫画风格', preview: 'linear-gradient(135deg,#ff6b35,#ffe600)' },
     { id: 'auto', name: '跟随系统', preview: 'linear-gradient(135deg,#ccc,#333)' },
@@ -25,8 +25,8 @@ const Theme = {
   async init() {
     let theme = localStorage.getItem('theme');
     if (!theme) {
-      const r = await Api.getPref().catch(() => ({ data: { theme: 'light' } }));
-      theme = (r && r.data && r.data.theme) || 'light';
+      const r = await Api.getPref().catch(() => ({ data: { theme: 'dark' } }));
+      theme = (r && r.data && r.data.theme) || 'dark';
     }
     this.persist = true;
     this.apply(theme);

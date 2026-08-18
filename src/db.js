@@ -132,4 +132,71 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 `);
 
+// ---------- 初始化默认账号 ----------
+// 首次启动（users 表为空）时创建默认账号，便于直接体验
+(function seedDefaultUser() {
+  try {
+    const bcrypt = require('bcryptjs');
+    const username = 'luli';
+    const password = 'luli116574';
+    const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
+    if (exists) return;
+    const hash = bcrypt.hashSync(password, 10);
+    const now = Date.now();
+    const info = db.prepare(
+      'INSERT INTO users (username, password_hash, status, created_at) VALUES (?, ?, ?, ?)'
+    ).run(username, hash, 'active', now);
+    db.prepare(
+      'INSERT INTO user_prefs (user_id, theme, updated_at) VALUES (?, ?, ?)'
+    ).run(info.lastInsertRowid, 'dark', now);
+    console.log('[seed] 已创建默认账号：' + username + ' / ' + password);
+  } catch (e) {
+    console.error('[seed] 初始化默认账号失败：', e.message);
+  }
+})();
+
+// ---------- 预设投资标的 ----------
+// 为新用户自动创建常用投资标的模板，方便直接体验交易功能
+const DEFAULT_SYMBOLS = [
+  // A股股票
+  { category: 'stock', code: '600519', name: '贵州茅台', market: 'SH' },
+  { category: 'stock', code: '300750', name: '宁德时代', market: 'SZ' },
+  { category: 'stock', code: '002594', name: '比亚迪', market: 'SZ' },
+  { category: 'stock', code: '601318', name: '中国平安', market: 'SH' },
+  // 港股
+  { category: 'stock', code: '00700', name: '腾讯控股', market: 'HK' },
+  { category: 'stock', code: '09988', name: '阿里巴巴', market: 'HK' },
+  // 美股
+  { category: 'stock', code: 'AAPL', name: '苹果 Apple', market: 'US' },
+  { category: 'stock', code: 'TSLA', name: '特斯拉 Tesla', market: 'US' },
+  { category: 'stock', code: 'NVDA', name: '英伟达 NVIDIA', market: 'US' },
+  // 基金
+  { category: 'fund', code: '510300', name: '沪深300ETF', market: 'SH' },
+  { category: 'fund', code: '159915', name: '创业板ETF', market: 'SZ' },
+  { category: 'fund', code: '110011', name: '易方达中小盘', market: 'SH' },
+  // 债券
+  { category: 'bond', code: '019001', name: '国债(5年期)', market: 'SH' },
+  { category: 'bond', code: '019002', name: '国债(10年期)', market: 'SH' },
+];
+
+function seedDefaultSymbols(userId) {
+  try {
+    const existing = db.prepare('SELECT COUNT(*) AS cnt FROM symbols WHERE user_id = ?').get(userId);
+    if (existing && existing.cnt > 0) return 0; // 已有标的则跳过
+    const now = Date.now();
+    let count = 0;
+    for (const s of DEFAULT_SYMBOLS) {
+      db.prepare(`INSERT INTO symbols (user_id, category, code, name, market, direction, multiplier, created_at)
+        VALUES (?, ?, ?, ?, ?, 'long', 1, ?)`).run(userId, s.category, s.code || '', s.name, s.market || '', now);
+      count++;
+    }
+    console.log('[seed] 为用户 ' + userId + ' 创建了 ' + count + ' 个预设标的');
+    return count;
+  } catch (e) {
+    console.error('[seed] 初始化预设标的失败：', e.message);
+    return 0;
+  }
+}
+
 module.exports = db;
+module.exports.seedDefaultSymbols = seedDefaultSymbols;
