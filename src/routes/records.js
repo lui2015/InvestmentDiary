@@ -6,30 +6,37 @@ const router = express.Router();
 const uid = (req) => req.user.id;
 
 // ---------- 股票搜索与实时行情 ----------
-// 使用东方财富搜索接口（免费，支持拼音/代码/名称模糊匹配）
-// 使用新浪行情接口获取实时股价（A股 sh/sz 前缀，港股 hk 前缀）
+// 使用腾讯财经 SmartBox 接口搜索（免费，支持 A股/港股/美股/基金，拼音/代码/名称）
+// 使用新浪行情接口获取实时股价
 async function fetchStockSearch(keyword) {
   if (!keyword || keyword.length < 1) return [];
   try {
-    const url = 'https://searchapi.eastmoney.com/api/suggest/get?input=' +
-      encodeURIComponent(keyword) + '&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=15';
-    const res = await fetch(url, { headers: { Referer: 'https://quote.eastmoney.com/' }, signal: AbortSignal.timeout(5000) });
-    const json = await res.json();
-    if (!json.data || !json.data.QuotationCodeTable) return [];
-    return (json.data.QuotationCodeTable.Data || []).map(item => {
-      // item 格式: "0.600519|贵州茅台|600519" 或 "116.HK00700|腾讯控股-HK|00700"
-      const parts = item.split('|');
-      const code = parts[2] || parts[0] || '';
-      const name = parts[1] || '';
+    const url = 'https://smartbox.gtimg.cn/s3/?q=' + encodeURIComponent(keyword) + '&t=all&c=1';
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const text = await res.text();
+    // 格式: v_hint="sh~600519~贵州茅台~gzmt~GP-A^hk~00700~腾讯控股~txkg~GP^..."
+    const match = text.match(/v_hint="([^"]*)"/);
+    if (!match || !match[1]) return [];
+    return match[1].split('^').map(item => {
+      const parts = item.split('~');
+      if (parts.length < 3) return null;
+      const marketRaw = (parts[0] || '').toLowerCase(); // sh/sz/hk/us/jj
+      const code = parts[1] || '';
+      const name = parts[2] || '';
+      const typeCode = parts[4] || ''; // GP-A, GP, ETF, LOF, KJ, QZ 等
       let market = '', category = 'stock';
-      if (/^6\d{4}$|^9\d{4}$/.test(code)) market = 'SH';       // 上交所
-      else if (/^[03]\d{4}$/.test(code)) market = 'SZ';           // 深交所
-      else if (/^4\d{4}$|^8\d{4}$/.test(code)) { market = 'BJ'; category = 'other'; } // 北交所
-      else if (/^\d{5}$/.test(code)) { market = 'HK'; category = 'stock'; } // 港股数字代码
-      else if (/^HK\d{5}$/i.test(code)) { market = 'HK'; category = 'stock'; } // 港股显式
-      else if (/^[A-Z]{1,3}\d{1,4}$/.test(code)) { market = 'US'; category = 'stock'; } // 美股
+      if (marketRaw === 'sh') market = 'SH';
+      else if (marketRaw === 'sz') market = 'SZ';
+      else if (marketRaw === 'hk') market = 'HK';
+      else if (marketRaw === 'us') market = 'US';
+      else if (marketRaw === 'jj') { market = 'SZ'; category = 'fund'; }
+      // 根据类型码细化分类
+      if (typeCode.includes('ETF')) category = 'fund';
+      else if (typeCode.includes('LOF')) category = 'fund';
+      else if (typeCode.includes('KJ')) category = 'bond';  // 可转债归债券
+      else if (typeCode.includes('QZ')) category = 'other'; // 权证
       return { code, name, market, category };
-    }).filter(s => s.name && s.code);
+    }).filter(s => s && s.name && s.code);
   } catch (e) {
     console.error('[stock-search]', e.message);
     return [];
