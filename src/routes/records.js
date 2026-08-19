@@ -43,13 +43,17 @@ async function fetchStockSearch(keyword) {
   }
 }
 
-// 实时行情：新浪接口（返回格式：var hq_str_sh600519="贵州茅台,...,当前价,..."）
+// 实时行情：新浪接口（A股字段3=当前价，港股字段6=当前价，美股字段1=当前价）
 async function fetchRealtimePrice(code, market) {
   try {
     let symbol;
-    if (market === 'SH' || /^6\d{4}$|^9\d{4}$/.test(code)) symbol = 'sh' + code.replace(/^0/, '');
-    else if (market === 'SZ' || /^[03]\d{4}$/.test(code)) symbol = 'sz' + code;
-    else if (market === 'HK' || /^\d{5}$/.test(code)) symbol = 'hk' + (code.length === 5 ? '0' + code : code.replace(/^HK/i, ''));
+    if (market === 'SH') symbol = 'sh' + code.replace(/^0/, '');
+    else if (market === 'SZ') symbol = 'sz' + code;
+    else if (market === 'HK') {
+      // 港股代码统一左补零到5位（新浪格式：hk00700）
+      const hkCode = code.replace(/^HK/i, '').replace(/^0+/, '') || code;
+      symbol = 'hk' + hkCode.padStart(5, '0');
+    }
     else if (market === 'US') symbol = 'gb_' + code.toLowerCase();
     else return null;
 
