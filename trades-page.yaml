@@ -1,0 +1,43 @@
+- generic [ref=e2]:
+  - complementary [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]: 📈
+      - generic [ref=e22]: 投资日记
+    - navigation [ref=e23]:
+      - link "📊 总览" [ref=e78] [cursor=pointer]:
+        - /url: "#/dashboard"
+      - link "💱 交易记录" [ref=e79] [cursor=pointer]:
+        - /url: "#/trades"
+      - link "📈 持仓" [ref=e80] [cursor=pointer]:
+        - /url: "#/positions"
+      - link "🔔 止盈止损" [ref=e81] [cursor=pointer]:
+        - /url: "#/alerts"
+      - link "📝 复盘" [ref=e82] [cursor=pointer]:
+        - /url: "#/reviews"
+      - link "👤 我的" [ref=e83] [cursor=pointer]:
+        - /url: "#/profile"
+    - button "🎨 主题" [ref=e31] [cursor=pointer]
+  - generic [ref=e3]:
+    - banner [ref=e32]:
+      - heading "交易记录" [level=1] [ref=e84]
+      - generic [ref=e34]:
+        - button "🎨" [ref=e35] [cursor=pointer]
+        - button "退出登录" [ref=e36] [cursor=pointer]
+    - main [ref=e4]:
+      - generic [ref=e85]:
+        - heading "交易流水" [level=3] [ref=e86]
+        - button "+ 新增交易" [ref=e87] [cursor=pointer]
+      - table [ref=e89]:
+        - rowgroup [ref=e90]:
+          - row "时间 标的 动作 方向 数量 价格 金额 备注" [ref=e91]:
+            - columnheader "时间" [ref=e92]
+            - columnheader "标的" [ref=e93]
+            - columnheader "动作" [ref=e94]
+            - columnheader "方向" [ref=e95]
+            - columnheader "数量" [ref=e96]
+            - columnheader "价格" [ref=e97]
+            - columnheader "金额" [ref=e98]
+            - columnheader "备注" [ref=e99]
+            - columnheader [ref=e100]
+          - row "还没有交易记录，点右上角\"新增交易\"" [ref=e101]:
+            - cell "还没有交易记录，点右上角\"新增交易\"" [ref=e102]

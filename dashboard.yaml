@@ -1,0 +1,67 @@
+- generic [ref=e2]:
+  - complementary [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]: 📈
+      - generic [ref=e22]: 投资日记
+    - navigation [ref=e23]:
+      - link "📊 总览" [ref=e24] [cursor=pointer]:
+        - /url: "#/dashboard"
+      - link "💱 交易记录" [ref=e25] [cursor=pointer]:
+        - /url: "#/trades"
+      - link "📈 持仓" [ref=e26] [cursor=pointer]:
+        - /url: "#/positions"
+      - link "🔔 止盈止损" [ref=e27] [cursor=pointer]:
+        - /url: "#/alerts"
+      - link "📝 复盘" [ref=e28] [cursor=pointer]:
+        - /url: "#/reviews"
+      - link "👤 我的" [ref=e29] [cursor=pointer]:
+        - /url: "#/profile"
+    - button "🎨 主题" [ref=e31] [cursor=pointer]
+  - generic [ref=e3]:
+    - banner [ref=e32]:
+      - heading "总览" [level=1] [ref=e33]
+      - generic [ref=e34]:
+        - button "🎨" [ref=e35] [cursor=pointer]
+        - button "退出登录" [ref=e36] [cursor=pointer]
+    - main [ref=e4]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - generic [ref=e39]: 总投入
+          - generic [ref=e40]: ¥0.00
+        - generic [ref=e41]:
+          - generic [ref=e42]: 持仓市值
+          - generic [ref=e43]: ¥0.00
+        - generic [ref=e44]:
+          - generic [ref=e45]: 浮动盈亏
+          - generic [ref=e46]: ¥0.00
+        - generic [ref=e47]:
+          - generic [ref=e48]: 累计收益
+          - generic [ref=e49]: ¥0.00
+        - generic [ref=e50]:
+          - generic [ref=e51]: 已实现
+          - generic [ref=e52]: ¥0.00
+        - generic [ref=e53]:
+          - generic [ref=e54]: 收益率
+          - generic [ref=e55]: 0%
+        - generic [ref=e56]:
+          - generic [ref=e57]: 持仓数
+          - generic [ref=e58]: 0 个
+        - generic [ref=e59]:
+          - generic [ref=e60]: 快捷操作
+          - generic [ref=e61]:
+            - button "+ 记一笔" [ref=e62] [cursor=pointer]
+            - button "检查提醒" [ref=e63] [cursor=pointer]
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "盈亏走势（按月·已实现）" [level=3] [ref=e66]
+          - generic [ref=e67]: 暂无数据
+        - generic [ref=e68]:
+          - heading "品类分布（市值）" [level=3] [ref=e69]
+          - generic [ref=e70]: 暂无数据
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - heading "盈利榜" [level=3] [ref=e73]
+          - generic [ref=e74]: 暂无持仓标的
+        - generic [ref=e75]:
+          - heading "亏损榜" [level=3] [ref=e76]
+          - generic [ref=e77]: 暂无持仓标的

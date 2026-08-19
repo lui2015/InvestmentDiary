@@ -1,0 +1,16 @@
+- main [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]: 📈
+    - generic [ref=e8]: 投资日记
+    - generic [ref=e9]: 记录每一笔投资，复盘每一次决策
+    - generic [ref=e10]:
+      - generic [ref=e11]: 用户名
+      - textbox "3-20 位字母数字下划线" [ref=e12]
+    - generic [ref=e13]:
+      - generic [ref=e14]: 密码
+      - textbox "至少 8 位含字母和数字" [ref=e15]
+    - button "登录" [ref=e16] [cursor=pointer]
+    - paragraph [ref=e17]:
+      - text: 还没有账号？
+      - link "注册" [ref=e18] [cursor=pointer]:
+        - /url: "#"
