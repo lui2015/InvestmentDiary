@@ -77,7 +77,7 @@
     const legend = data.map((d, i) => `<div class="row" style="gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:${colors[i % 3]}"></span>${labelCat(d.category)} ${fmtMoney(d.market)}</div>`).join('');
     return `<div class="row" style="gap:16px;align-items:center"><svg width="140" height="140" viewBox="0 0 140 140">${segs}</svg><div>${legend}</div></div>`;
   }
-  const labelCat = (c) => ({ stock: '股票', fund: '基金', future: '期货', bond: '债券' }[c] || c);
+  const labelCat = (c) => ({ stock: '股票', fund: '基金', future: '期货', bond: '债券', other: '其他' }[c] || c);
 
   // ---------- 导航 ----------
   function renderNav() {
@@ -203,8 +203,7 @@
   // ---------- 交易记录 ----------
   async function renderTrades(root) {
     try {
-      const [syms, trades] = await Promise.all([Api.listSymbols(), Api.listTrades()]);
-      const symOpts = (syms.data || []).map(s => `<option value="${s.id}">${esc(s.name)}${s.code ? '(' + esc(s.code) + ')' : ''}</option>`).join('');
+      const [trades] = await Promise.all([Api.listTrades()]);
       root.innerHTML = `
         <div class="spread mb"><h3>交易流水</h3><button class="btn small" id="addTrade">+ 新增交易</button></div>
         <div class="card">
@@ -221,16 +220,22 @@
             </tr>`).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">还没有交易记录，点右上角"新增交易"</td></tr>'}
           </table>
         </div>`;
-      $('#addTrade').onclick = () => openTradeForm(symOpts);
+      $('#addTrade').onclick = () => openTradeForm();
       $$('[data-del]', root).forEach(b => b.onclick = async () => {
         if (await confirmDialog('确定删除该笔交易？')) { await guard(Api.delTrade(b.dataset.del)); renderTrades(root); }
       });
     } catch (e) { console.error('[trades]', e); root.innerHTML = `<div class="empty"><div class="big">⚠️</div><p>加载失败</p></div>`; }
   }
   const actLabel = (a) => ({ open: '开仓', add: '加仓', reduce: '减仓', close: '平仓', dividend: '分红', fee: '费用' }[a] || a);
-  function openTradeForm(symOpts) {
+  function openTradeForm() {
     openModal('新增交易', `
-      <div class="field"><label>标的</label><select id="t_sym">${symOpts || '<option value="">请先添加标的</option>'}</select></div>
+      <div class="field"><label>标的名称</label><input id="t_sym_name" placeholder="如：贵州茅台、AAPL、沪深300ETF"/></div>
+      <div class="field"><label>分类</label><select id="t_cat">
+        <option value="stock">股票</option>
+        <option value="fund">基金</option>
+        <option value="future">期货</option>
+        <option value="bond">债券</option>
+        <option value="other">其他</option></select></div>
       <div class="row" style="gap:12px">
         <div class="field" style="flex:1"><label>动作</label><select id="t_act">
           <option value="open">开仓</option><option value="add">加仓</option><option value="reduce">减仓</option>
@@ -249,10 +254,12 @@
       <button class="btn block" id="t_submit">保存</button>`);
     $('#t_submit').onclick = async () => {
       const body = {
-        symbol_id: parseInt($('#t_sym').value), action: $('#t_act').value, side: $('#t_side').value,
+        symbol_name: $('#t_sym_name').value.trim(), category: $('#t_cat').value,
+        action: $('#t_act').value, side: $('#t_side').value,
         quantity: $('#t_qty').value, price: $('#t_price').value, fee: $('#t_fee').value || 0,
         datetime: $('#t_dt').value ? new Date($('#t_dt').value).getTime() : Date.now(), note: $('#t_note').value
       };
+      if (!body.symbol_name) return toast('请输入标的名称');
       const r = await guard(Api.addTrade(body));
       if (r.code === 0) { closeModal(); renderTrades($('#content')); }
     };
