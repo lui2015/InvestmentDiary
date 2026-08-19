@@ -7,6 +7,9 @@ const API = {
       opts.body = JSON.stringify(body);
     }
     const res = await fetch(url, opts);
+    if (res.headers.get('content-type') && res.headers.get('content-type').includes('text/csv')) {
+      return { code: 0, data: await res.blob() };
+    }
     let json = {};
     try { json = await res.json(); } catch (e) { json = { code: 1, message: '响应解析失败' }; }
     return json;
@@ -17,47 +20,64 @@ const API = {
   del: (u) => API.req('DELETE', u),
 };
 
-// 业务接口
+function qs(obj) {
+  const p = new URLSearchParams();
+  Object.keys(obj || {}).forEach(k => {
+    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') p.set(k, obj[k]);
+  });
+  const s = p.toString();
+  return s ? '?' + s : '';
+}
+
 const Api = {
-  // 鉴权
-  register: (u, p) => API.post('api/auth/register', { username: u, password: p }),
-  login: (u, p) => API.post('api/auth/login', { username: u, password: p }),
+  register: (u, p, remember) => API.post('api/auth/register', { username: u, password: p, remember }),
+  login: (u, p, remember) => API.post('api/auth/login', { username: u, password: p, remember }),
   logout: () => API.post('api/auth/logout', {}),
   me: () => API.get('api/auth/me'),
   changePwd: (o, n) => API.put('api/auth/password', { old_password: o, new_password: n }),
-  // 账户/标的/交易
+
   listAccounts: () => API.get('api/accounts'),
   addAccount: (b) => API.post('api/accounts', b),
+  updateAccount: (id, b) => API.put('api/accounts/' + id, b),
   delAccount: (id) => API.del('api/accounts/' + id),
   listSymbols: () => API.get('api/symbols'),
   addSymbol: (b) => API.post('api/symbols', b),
   delSymbol: (id) => API.del('api/symbols/' + id),
-  listTrades: (q) => API.get('api/trades' + (q ? '?' + q : '')),
+  listTrades: (q) => API.get('api/trades' + (typeof q === 'string' ? (q ? '?' + q : '') : qs(q))),
+  getTrade: (id) => API.get('api/trades/' + id),
   addTrade: (b) => API.post('api/trades', b),
+  updateTrade: (id, b) => API.put('api/trades/' + id, b),
   delTrade: (id) => API.del('api/trades/' + id),
   setPrice: (id, price) => API.put('api/prices/' + id, { price }),
-  // 统计
+  refreshPrices: () => API.post('api/prices/refresh', {}),
+
   overview: () => API.get('api/stats/overview'),
   ranking: () => API.get('api/stats/ranking'),
   trend: () => API.get('api/stats/trend'),
-  // 提醒
+  discipline: () => API.get('api/stats/discipline'),
+
   listRules: () => API.get('api/alerts/rules'),
   addRule: (b) => API.post('api/alerts/rules', b),
+  toggleRule: (id, status) => API.put('api/alerts/rules/' + id, { status }),
   delRule: (id) => API.del('api/alerts/rules/' + id),
   listLogs: () => API.get('api/alerts/logs'),
+  unread: () => API.get('api/alerts/unread'),
   handleLog: (id) => API.post('api/alerts/logs/' + id + '/handle', {}),
+  handleAllLogs: () => API.post('api/alerts/logs/handle-all', {}),
   checkAlerts: () => API.post('api/alerts/check', {}),
-  // 复盘
+
   listReviews: () => API.get('api/reviews/'),
   addReview: (b) => API.post('api/reviews/', b),
   updateReview: (id, b) => API.put('api/reviews/' + id, b),
   delReview: (id) => API.del('api/reviews/' + id),
   reviewTemplate: () => API.get('api/reviews/template'),
-  // 偏好
+  periodInsight: (start, end) => API.get('api/reviews/period-insight' + qs({ start, end })),
+
   getPref: () => API.get('api/pref/'),
   setTheme: (t) => API.put('api/pref/theme', { theme: t }),
   exportData: () => API.get('api/pref/export'),
-  // 行情
-  searchStock: (q, cat) => API.get('symbols/search?q=' + encodeURIComponent(q) + (cat ? '&cat=' + cat : '')),
-  realtimePrice: (code, market) => API.get('prices/realtime?code=' + encodeURIComponent(code) + (market ? '&market=' + market : '')),
+  importData: (data) => API.post('api/pref/import', data),
+
+  searchStock: (q, cat) => API.get('api/symbols/search' + qs({ q, cat })),
+  realtimePrice: (code, market) => API.get('api/prices/realtime' + qs({ code, market })),
 };

@@ -19,7 +19,7 @@ const Theme = {
     document.documentElement.setAttribute('data-theme', resolved);
     // 同步移动端主题色
     const meta = document.querySelector('meta[name="theme-color"]');
-    const colors = { light: '#4f46e5', dark: '#0f1117', cyberpunk: '#ff2bd6', comic: '#ff6b35' };
+    const colors = { light: '#eef2f9', dark: '#05080f', cyberpunk: '#0a0612', comic: '#fff7e6' };
     if (meta) meta.setAttribute('content', colors[resolved] || '#4f46e5');
   },
   async init() {

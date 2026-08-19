@@ -4,15 +4,31 @@ const db = require('../db');
 const auth = require('../auth');
 const router = express.Router();
 
-// authRoutes 挂载在公开区，需自行从 cookie 解析用户
 const attachUser = (req, res, next) => {
   req.user = auth.getUserFromToken(req.cookies[auth.COOKIE_NAME]);
   next();
 };
 
+function setSessionCookie(res, token, remember) {
+  const maxAge = remember ? 90 * 24 * 3600 * 1000 : auth.TTL;
+  res.cookie(auth.COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge,
+    path: '/',
+    secure: process.env.NODE_ENV === 'production'
+  });
+}
+
+function seedUserData(userId) {
+  const { seedDefaultSymbols, seedDefaultAccount } = require('../db');
+  seedDefaultAccount(userId);
+  seedDefaultSymbols(userId);
+}
+
 // 注册
 router.post('/register', (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, remember } = req.body || {};
   if (!username || !password) return res.status(400).json({ code: 1, message: '用户名和密码必填' });
   if (username.length < 3 || username.length > 20) return res.status(400).json({ code: 1, message: '用户名需 3-20 位' });
   if (!/^[a-zA-Z0-9_]+$/.test(username)) return res.status(400).json({ code: 1, message: '用户名仅限字母数字下划线' });
@@ -26,19 +42,18 @@ router.post('/register', (req, res) => {
   const info = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)')
     .run(username, hash, Date.now());
   db.prepare('INSERT INTO user_prefs (user_id, theme, updated_at) VALUES (?, ?, ?)')
-    .run(info.lastInsertRowid, 'light', Date.now());
+    .run(info.lastInsertRowid, 'dark', Date.now());
+  seedUserData(info.lastInsertRowid);
 
-  const token = auth.createSession(info.lastInsertRowid);
-  res.cookie(auth.COOKIE_NAME, token, {
-    httpOnly: true, sameSite: 'lax', maxAge: auth.TTL, path: '/'
-  });
+  const token = auth.createSession(info.lastInsertRowid, remember);
+  setSessionCookie(res, token, remember);
   res.json({ code: 0, data: { id: info.lastInsertRowid, username } });
 });
 
 // 登录（含失败锁定）
-const loginFails = {}; // 简单内存级防暴破：username -> {count, lockUntil}
+const loginFails = {};
 router.post('/login', (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, remember } = req.body || {};
   if (!username || !password) return res.status(400).json({ code: 1, message: '用户名和密码必填' });
   const f = loginFails[username];
   if (f && f.lockUntil > Date.now()) {
@@ -53,14 +68,11 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ code: 1, message: '用户名或密码错误' });
   }
   loginFails[username] = { count: 0, lockUntil: 0 };
-  const token = auth.createSession(user.id);
-  res.cookie(auth.COOKIE_NAME, token, {
-    httpOnly: true, sameSite: 'lax', maxAge: auth.TTL, path: '/'
-  });
+  const token = auth.createSession(user.id, remember);
+  setSessionCookie(res, token, remember);
   res.json({ code: 0, data: { id: user.id, username: user.username } });
 });
 
-// 登出
 router.post('/logout', (req, res) => {
   const token = req.cookies[auth.COOKIE_NAME];
   auth.destroySession(token);
@@ -68,14 +80,12 @@ router.post('/logout', (req, res) => {
   res.json({ code: 0 });
 });
 
-// 当前用户
 router.get('/me', attachUser, (req, res) => {
   const user = req.user;
   if (!user) return res.status(401).json({ code: 1, message: '未登录' });
   res.json({ code: 0, data: { id: user.id, username: user.username, created_at: user.created_at } });
 });
 
-// 修改密码
 router.put('/password', attachUser, (req, res) => {
   const user = req.user;
   if (!user) return res.status(401).json({ code: 1, message: '未登录' });

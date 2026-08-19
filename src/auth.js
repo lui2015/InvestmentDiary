@@ -11,12 +11,13 @@ function genToken() {
 }
 
 // 创建会话并返回 token
-function createSession(userId) {
+function createSession(userId, remember) {
   const token = genToken();
   const now = Date.now();
+  const ttl = remember ? 90 * 24 * 3600 * 1000 : TTL;
   db.prepare(
     'INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
-  ).run(token, userId, now + TTL, now);
+  ).run(token, userId, now + ttl, now);
   return token;
 }
 

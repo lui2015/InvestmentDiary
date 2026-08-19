@@ -31,6 +31,10 @@
 [data-theme="light"] .modal { background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(244,248,253,.97)); color: var(--text); }
 [data-theme="light"] .bottom-nav { background: rgba(255, 255, 255, 0.95); }
 [data-theme="light"] input, [data-theme="light"] select, [data-theme="light"] textarea { background: rgba(255, 255, 255, 0.7); }
+[data-theme="light"] .hero { --hero-from: rgba(37, 99, 235, 0.12); --hero-to: rgba(99, 102, 241, 0.1); }
+[data-theme="light"] .sym-suggest { background: #fff; }
+[data-theme="light"] .table th { background: rgba(255,255,255,.92); }
+[data-theme="light"] .user-avatar { color: #fff; }
 
 /* 暗色 dark（更深邃的科技蓝黑，区别于默认） */
 [data-theme="dark"] {
@@ -109,6 +113,8 @@
 [data-theme="comic"] .badge { border: 2px solid var(--border); }
 [data-theme="comic"] .brand-logo, [data-theme="comic"] .login-logo { box-shadow: 3px 3px 0 #2b2b2b; }
 [data-theme="comic"] .sidebar, [data-theme="comic"] .topbar, [data-theme="comic"] .bottom-nav { background: #fff7e6; }
+[data-theme="comic"] .hero { background: #fff; }
+[data-theme="comic"] .fab { border: 2.5px solid #2b2b2b; box-shadow: 4px 4px 0 #2b2b2b; }
 
 /* 跟随系统 auto -> 由 JS 解析为 light/dark */
 [data-theme="auto"] { /* 默认等同 :root，JS 会再套用系统值 */ }

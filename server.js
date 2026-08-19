@@ -25,10 +25,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 
-// 鉴权中间件：注入 req.user
+// 鉴权中间件：注入 req.user（标的搜索公开，便于登录页/记一笔联想）
 const requireAuth = (req, res, next) => {
+  if (req.method === 'GET' && req.path === '/symbols/search') return next();
   const user = auth.getUserFromToken(req.cookies[auth.COOKIE_NAME]);
   if (!user) return res.status(401).json({ code: 1, message: '未登录或会话已过期' });
   req.user = user;
@@ -42,10 +43,8 @@ app.use(BASE + '/', express.static(publicDir, { extensions: ['html'] }));
 // API
 const api = express.Router();
 api.get('/health', (req, res) => res.json({ code: 0, status: 'ok' }));
-// 股票搜索接口（公开，无需登录，用于输入联想）
-api.get('/symbols/search', recordsRoutes);
 api.use('/auth', authRoutes);          // 公开
-api.use(requireAuth);                  // 以下均需登录
+api.use(requireAuth);                  // 以下均需登录（/symbols/search 已在中间件放行）
 api.use(recordsRoutes);                // /api/accounts|symbols|trades|prices
 api.use('/stats', statsRoutes);        // /api/stats/...
 api.use('/alerts', alertsRoutes);      // /api/alerts/...
