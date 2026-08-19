@@ -42,6 +42,8 @@ app.use(BASE + '/', express.static(publicDir, { extensions: ['html'] }));
 // API
 const api = express.Router();
 api.get('/health', (req, res) => res.json({ code: 0, status: 'ok' }));
+// 股票搜索接口（公开，无需登录，用于输入联想）
+api.get('/symbols/search', recordsRoutes);
 api.use('/auth', authRoutes);          // 公开
 api.use(requireAuth);                  // 以下均需登录
 api.use(recordsRoutes);                // /api/accounts|symbols|trades|prices

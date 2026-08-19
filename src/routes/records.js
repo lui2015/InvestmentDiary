@@ -1,9 +1,91 @@
-// src/routes/records.js - 账户 / 标的 / 交易记录 / 市价
+// src/routes/records.js - 账户 / 标的 / 交易记录 / 市价 / 行情
 const express = require('express');
 const db = require('../db');
 const router = express.Router();
 
 const uid = (req) => req.user.id;
+
+// ---------- 股票搜索与实时行情 ----------
+// 使用东方财富搜索接口（免费，支持拼音/代码/名称模糊匹配）
+// 使用新浪行情接口获取实时股价（A股 sh/sz 前缀，港股 hk 前缀）
+async function fetchStockSearch(keyword) {
+  if (!keyword || keyword.length < 1) return [];
+  try {
+    const url = 'https://searchapi.eastmoney.com/api/suggest/get?input=' +
+      encodeURIComponent(keyword) + '&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=15';
+    const res = await fetch(url, { headers: { Referer: 'https://quote.eastmoney.com/' }, signal: AbortSignal.timeout(5000) });
+    const json = await res.json();
+    if (!json.data || !json.data.QuotationCodeTable) return [];
+    return (json.data.QuotationCodeTable.Data || []).map(item => {
+      // item 格式: "0.600519|贵州茅台|600519" 或 "116.HK00700|腾讯控股-HK|00700"
+      const parts = item.split('|');
+      const code = parts[2] || parts[0] || '';
+      const name = parts[1] || '';
+      let market = '', category = 'stock';
+      if (/^6\d{4}$|^9\d{4}$/.test(code)) market = 'SH';       // 上交所
+      else if (/^[03]\d{4}$/.test(code)) market = 'SZ';           // 深交所
+      else if (/^4\d{4}$|^8\d{4}$/.test(code)) { market = 'BJ'; category = 'other'; } // 北交所
+      else if (/^\d{5}$/.test(code)) { market = 'HK'; category = 'stock'; } // 港股数字代码
+      else if (/^HK\d{5}$/i.test(code)) { market = 'HK'; category = 'stock'; } // 港股显式
+      else if (/^[A-Z]{1,3}\d{1,4}$/.test(code)) { market = 'US'; category = 'stock'; } // 美股
+      return { code, name, market, category };
+    }).filter(s => s.name && s.code);
+  } catch (e) {
+    console.error('[stock-search]', e.message);
+    return [];
+  }
+}
+
+// 实时行情：新浪接口（返回格式：var hq_str_sh600519="贵州茅台,...,当前价,..."）
+async function fetchRealtimePrice(code, market) {
+  try {
+    let symbol;
+    if (market === 'SH' || /^6\d{4}$|^9\d{4}$/.test(code)) symbol = 'sh' + code.replace(/^0/, '');
+    else if (market === 'SZ' || /^[03]\d{4}$/.test(code)) symbol = 'sz' + code;
+    else if (market === 'HK' || /^\d{5}$/.test(code)) symbol = 'hk' + (code.length === 5 ? '0' + code : code.replace(/^HK/i, ''));
+    else if (market === 'US') symbol = 'gb_' + code.toLowerCase();
+    else return null;
+
+    const url = 'https://hq.sinajs.cn/list=' + symbol;
+    const res = await fetch(url, {
+      headers: { Referer: 'https://finance.sina.com.cn/' },
+      signal: AbortSignal.timeout(5000)
+    });
+    const text = await res.text();
+    // 解析: var hq_str_sh600519="贵州茅台,....,当前价(字段3),..."
+    const match = text.match(/="([^"]+)"/);
+    if (!match || !match[1]) return null;
+    const fields = match[1].split(',');
+    // A股: 字段3=当前价; 港股: 字段6=当前价; 美股: 字段1=当前价
+    const price = parseFloat(
+      symbol.startsWith('hk') ? fields[6] :
+        symbol.startsWith('gb_') ? fields[1] : fields[3]
+    );
+    return isNaN(price) ? null : price;
+  } catch (e) {
+    console.error('[realtime-price]', e.message);
+    return null;
+  }
+}
+
+// GET /symbols/search?q=茅台&cat=stock — 搜索股票（公开接口，无需登录）
+router.get('/symbols/search', async (req, res) => {
+  const { q, cat } = req.query;
+  if (!q || q.trim().length < 1) return res.json({ code: 0, data: [] });
+  const results = await fetchStockSearch(q.trim());
+  // 按分类过滤（如果指定）
+  const filtered = cat ? results.filter(r => r.category === cat) : results;
+  res.json({ code: 0, data: filtered.slice(0, 15) });
+});
+
+// GET /prices/realtime?code=600519&market=SH — 实时行情（需登录）
+router.get('/prices/realtime', async (req, res) => {
+  const { code, market } = req.query;
+  if (!code) return res.status(400).json({ code: 1, message: '缺少股票代码' });
+  const price = await fetchRealtimePrice(code, market || '');
+  if (price == null) return res.json({ code: 0, data: { price: null, error: '未获取到行情数据' } });
+  res.json({ code: 0, data: { price } });
+});
 
 // ---------- 账户 ----------
 router.get('/accounts', (req, res) => {

@@ -229,7 +229,9 @@
   const actLabel = (a) => ({ open: '开仓', add: '加仓', reduce: '减仓', close: '平仓', dividend: '分红', fee: '费用' }[a] || a);
   function openTradeForm() {
     openModal('新增交易', `
-      <div class="field"><label>标的名称</label><input id="t_sym_name" placeholder="如：贵州茅台、AAPL、沪深300ETF"/></div>
+      <div class="field" style="position:relative"><label>标的名称</label>
+        <input id="t_sym_name" placeholder="输入股票名/代码搜索，如：贵州茅台、600519、AAPL" autocomplete="off"/>
+        <div id="t_sym_suggest" class="sym-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99;max-height:220px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;box-shadow:0 6px 20px rgba(0,0,0,.2)"></div></div>
       <div class="field"><label>分类</label><select id="t_cat">
         <option value="stock">股票</option>
         <option value="fund">基金</option>
@@ -252,6 +254,61 @@
       </div>
       <div class="field"><label>备注</label><input id="t_note" placeholder="可选"/></div>
       <button class="btn block" id="t_submit">保存</button>`);
+
+    // 搜索联想（防抖 300ms）
+    const suggestBox = $('#t_sym_suggest');
+    let timer = null;
+    let selectedCode = '', selectedMarket = '';
+    $('#t_sym_name').oninput = () => {
+      clearTimeout(timer);
+      const val = $('#t_sym_name').value.trim();
+      if (val.length < 1) { suggestBox.style.display = 'none'; return; }
+      timer = setTimeout(async () => {
+        try {
+          const cat = $('#t_cat').value;
+          const r = await Api.searchStock(val, cat === 'stock' ? 'stock' : '');
+          if (!r.data || !r.data.length) { suggestBox.style.display = 'none'; return; }
+          suggestBox.innerHTML = r.data.map(s =>
+            `<div class="sym-item" data-code="${esc(s.code)}" data-market="${esc(s.market)}" data-cat="${esc(s.category)}" data-name="${esc(s.name)}"
+              style="padding:8px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center">
+              <span><b>${esc(s.name)}</b> <span class="muted">${s.code}</span></span>
+              <span class="badge blue" style="font-size:11px">${labelCat(s.category || 'stock')}${s.market ? '(' + s.market + ')' : ''}</span></div>`
+          ).join('');
+          suggestBox.style.display = '';
+          // 点击选中
+          $$('.sym-item', suggestBox).forEach(el => el.onclick = () => {
+            $('#t_sym_name').value = el.dataset.name;
+            selectedCode = el.dataset.code;
+            selectedMarket = el.dataset.market;
+            // 自动设置分类
+            if (el.dataset.cat && $(`#t_cat option[value="${el.dataset.cat}"]`)) $('#t_cat').value = el.dataset.cat;
+            suggestBox.style.display = 'none';
+            // 尝试获取实时价格填入
+            fetchAndFillPrice(selectedCode, selectedMarket);
+          });
+        } catch { suggestBox.style.display = 'none'; }
+      }, 300);
+    };
+    // 失焦延迟关闭（给点击留时间）
+    $('#t_sym_name').onblur = () => setTimeout(() => { suggestBox.style.display = 'none'; }, 200);
+    // 聚焦时如果有值则重新搜索
+    $('#t_sym_name').onfocus = () => {
+      const v = $('#t_sym_name').value.trim();
+      if (v.length >= 1) $('#t_sym_name').dispatchEvent(new Event('input'));
+    };
+
+    // 获取实时价格并填入
+    async function fetchAndFillPrice(code, market) {
+      if (!code) return;
+      try {
+        const r = await Api.realtimePrice(code, market);
+        if (r.code === 0 && r.data.price != null) {
+          $('#t_price').value = r.data.price.toFixed(2);
+          toast('已获取最新价: ¥' + r.data.price.toFixed(2));
+        }
+      } catch {}
+    }
+
     $('#t_submit').onclick = async () => {
       const body = {
         symbol_name: $('#t_sym_name').value.trim(), category: $('#t_cat').value,
@@ -280,7 +337,8 @@
               <td>${labelCat(p.category)}</td>
               <td>${p.direction === 'short' ? '空' : '多'}</td>
               <td>${fmt(p.qty)}</td><td>${fmt(p.avg_cost)}</td>
-              <td><input style="width:90px" type="number" step="any" inputmode="decimal" value="${p.market_price == null ? '' : p.market_price}" data-price="${p.symbol_id}" placeholder="录入市价"/></td>
+              <td><div class="row" style="gap:4px;align-items:center"><input style="width:90px" type="number" step="any" inputmode="decimal" value="${p.market_price == null ? '' : p.market_price}" data-price="${p.symbol_id}" placeholder="录入市价"/>
+              ${p.code && p.market ? `<button class="btn small ghost" data-rt="${p.symbol_id}" data-code="${esc(p.code)}" data-mkt="${esc(p.market || '')}" title="获取实时行情">行情</button>` : ''}</div></td>
               <td>${fmtMoney(p.market_value)}</td>
               <td class="${pnlClass(p.float_pnl)}">${p.float_pnl == null ? '-' : fmtMoney(p.float_pnl)}</td>
               <td><button class="btn small" data-set="${p.symbol_id}">更新</button></td>
@@ -292,6 +350,19 @@
         if (inp.value === '') return toast('请先录入市价');
         await guard(Api.setPrice(b.dataset.set, inp.value));
         toast('已更新'); renderPositions(root);
+      });
+      // 实时行情按钮
+      $$('[data-rt]', root).forEach(btn => btn.onclick = async () => {
+        const code = btn.dataset.code, market = btn.dataset.mkt;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          const r = await Api.realtimePrice(code, market);
+          if (r.code === 0 && r.data.price != null) {
+            $(`[data-price="${btn.dataset.rt}"]`).value = r.data.price.toFixed(2);
+            toast(`${code} 最新价: ¥${r.data.price.toFixed(2)}`);
+          } else { toast(r.data.error || '未获取到行情'); }
+        } catch { toast('请求失败'); }
+        finally { btn.disabled = false; btn.textContent = '行情'; }
       });
     } catch (e) { console.error('[positions]', e); root.innerHTML = `<div class="empty"><div class="big">⚠️</div><p>加载失败</p></div>`; }
   }

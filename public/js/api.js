@@ -57,4 +57,7 @@ const Api = {
   getPref: () => API.get('api/pref/'),
   setTheme: (t) => API.put('api/pref/theme', { theme: t }),
   exportData: () => API.get('api/pref/export'),
+  // 行情
+  searchStock: (q, cat) => API.get('symbols/search?q=' + encodeURIComponent(q) + (cat ? '&cat=' + cat : '')),
+  realtimePrice: (code, market) => API.get('prices/realtime?code=' + encodeURIComponent(code) + (market ? '&market=' + market : '')),
 };
