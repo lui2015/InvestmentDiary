@@ -81,7 +81,7 @@ router.post('/trades', (req, res) => {
     } else {
       const info = db.prepare(`INSERT INTO symbols (user_id, category, code, name, market, direction, multiplier, created_at)
         VALUES (?, ?, '', ?, '', 'long', 1, ?)`)
-        .run(uid(req), category, symbol_name.trim(), '', Date.now());
+        .run(uid(req), category, symbol_name.trim(), Date.now());
       sid = info.lastInsertRowid;
     }
   }
