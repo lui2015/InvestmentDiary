@@ -435,9 +435,10 @@
     ).join('');
     const isEdit = !!(existing && existing.id);
     openModal(isEdit ? '编辑交易' : '记一笔交易', `
-      <div class="field" style="position:relative"><label>标的名称 / 代码</label>
-        <input id="t_sym_name" placeholder="贵州茅台、600519、AAPL" autocomplete="off" value="${esc(existing && existing.symbol_name)}"/>
-        <div id="t_sym_suggest" class="sym-suggest"></div></div>
+      <div class="field suggest-field"><label>标的名称 / 代码</label>
+        <input id="t_sym_name" placeholder="输入名称、代码或拼音，如 贵州 / 600519 / gzmt" autocomplete="off" value="${esc(existing && existing.symbol_name)}"/>
+        <div id="t_sym_suggest" class="sym-suggest" hidden></div>
+        <div class="hint">从列表点选后会自动带上代码和市场，方便之后拉实时行情算盈亏。</div></div>
       <div class="row" style="gap:12px">
         <div class="field"><label>分类</label><select id="t_cat">
           <option value="stock">股票</option><option value="fund">基金</option>
@@ -466,6 +467,9 @@
 
     let selectedCode = (existing && (existing.symbol_code || '')) || '';
     let selectedMarket = (existing && (existing.symbol_market || existing.market || '')) || '';
+    let selectedQuoteId = '';
+    let suggestItems = [];
+    let suggestIdx = -1;
     if (existing && existing.category) $('#t_cat').value = existing.category;
     if (existing && existing.action) $('#t_act').value = existing.action;
     if (existing && existing.side) $('#t_side').value = existing.side;
@@ -484,33 +488,68 @@
 
     const suggestBox = $('#t_sym_suggest');
     let timer = null;
+    const hideSuggest = () => { suggestBox.hidden = true; suggestBox.innerHTML = ''; suggestItems = []; suggestIdx = -1; };
+    const pickSuggest = (s) => {
+      if (!s) return;
+      $('#t_sym_name').value = s.name;
+      selectedCode = s.code || '';
+      selectedMarket = s.market || '';
+      selectedQuoteId = s.quote_id || '';
+      if (s.category && $(`#t_cat option[value="${s.category}"]`)) $('#t_cat').value = s.category;
+      hideSuggest();
+      fetchAndFillPrice(selectedCode, selectedMarket);
+    };
+    const renderSuggest = (rows, q) => {
+      suggestItems = rows || [];
+      suggestIdx = suggestItems.length ? 0 : -1;
+      if (!suggestItems.length) {
+        suggestBox.innerHTML = `<div class="sym-item muted">没有匹配「${esc(q)}」。可直接用该名称记账，或再输入代码。</div>`;
+        suggestBox.hidden = false;
+        return;
+      }
+      suggestBox.innerHTML = suggestItems.map((s, i) =>
+        `<div class="sym-item ${i === 0 ? 'active' : ''}" data-i="${i}">
+          <span><b>${esc(s.name)}</b> <span class="muted">${esc(s.code)}</span></span>
+          <span class="badge ${s.source === 'local' ? 'green' : 'blue'}">${esc(s.type_name || labelCat(s.category))}${s.market ? ' · ' + esc(s.market) : ''}</span>
+        </div>`
+      ).join('');
+      suggestBox.hidden = false;
+      $$('.sym-item', suggestBox).forEach(el => {
+        el.onmousedown = (e) => e.preventDefault();
+        el.onclick = () => pickSuggest(suggestItems[Number(el.dataset.i)]);
+      });
+    };
+    const highlightSuggest = () => {
+      $$('.sym-item', suggestBox).forEach((el, i) => el.classList.toggle('active', i === suggestIdx));
+      const cur = suggestBox.querySelector('.sym-item.active');
+      if (cur) cur.scrollIntoView({ block: 'nearest' });
+    };
     $('#t_sym_name').oninput = () => {
       clearTimeout(timer);
-      selectedCode = ''; selectedMarket = '';
+      selectedCode = ''; selectedMarket = ''; selectedQuoteId = '';
       const val = $('#t_sym_name').value.trim();
-      if (val.length < 1) { suggestBox.style.display = 'none'; return; }
+      if (val.length < 1) { hideSuggest(); return; }
+      suggestBox.innerHTML = '<div class="sym-item muted">正在搜索股票 / 基金…</div>';
+      suggestBox.hidden = false;
       timer = setTimeout(async () => {
         try {
           const r = await Api.searchStock(val);
-          if (!r.data || !r.data.length) { suggestBox.style.display = 'none'; return; }
-          suggestBox.innerHTML = r.data.map(s =>
-            `<div class="sym-item" data-code="${esc(s.code)}" data-market="${esc(s.market)}" data-cat="${esc(s.category)}" data-name="${esc(s.name)}">
-              <span><b>${esc(s.name)}</b> <span class="muted">${esc(s.code)}</span></span>
-              <span class="badge blue">${labelCat(s.category || 'stock')}${s.market ? ' · ' + s.market : ''}</span></div>`
-          ).join('');
-          suggestBox.style.display = 'block';
-          $$('.sym-item', suggestBox).forEach(el => el.onclick = () => {
-            $('#t_sym_name').value = el.dataset.name;
-            selectedCode = el.dataset.code;
-            selectedMarket = el.dataset.market;
-            if (el.dataset.cat && $(`#t_cat option[value="${el.dataset.cat}"]`)) $('#t_cat').value = el.dataset.cat;
-            suggestBox.style.display = 'none';
-            fetchAndFillPrice(selectedCode, selectedMarket);
-          });
-        } catch { suggestBox.style.display = 'none'; }
-      }, 280);
+          if ($('#t_sym_name').value.trim() !== val) return;
+          renderSuggest(r.data || [], val);
+        } catch {
+          suggestBox.innerHTML = '<div class="sym-item muted">搜索失败，可直接输入名称保存</div>';
+          suggestBox.hidden = false;
+        }
+      }, 220);
     };
-    $('#t_sym_name').onblur = () => setTimeout(() => { suggestBox.style.display = 'none'; }, 220);
+    $('#t_sym_name').onkeydown = (e) => {
+      if (suggestBox.hidden || !suggestItems.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); suggestIdx = (suggestIdx + 1) % suggestItems.length; highlightSuggest(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); suggestIdx = (suggestIdx - 1 + suggestItems.length) % suggestItems.length; highlightSuggest(); }
+      else if (e.key === 'Enter' && suggestIdx >= 0) { e.preventDefault(); pickSuggest(suggestItems[suggestIdx]); }
+      else if (e.key === 'Escape') hideSuggest();
+    };
+    $('#t_sym_name').onblur = () => setTimeout(hideSuggest, 180);
 
     async function fetchAndFillPrice(code, market) {
       if (!code) return;
@@ -533,6 +572,7 @@
         symbol_name: $('#t_sym_name').value.trim(),
         symbol_code: selectedCode,
         market: selectedMarket,
+        quote_id: selectedQuoteId,
         category: $('#t_cat').value,
         account_id: acc || null,
         action: $('#t_act').value, side: $('#t_side').value,
@@ -541,6 +581,18 @@
         note: $('#t_note').value
       };
       if (!body.symbol_name) return toast('请输入标的名称', 'err');
+      if (!body.symbol_code) {
+        try {
+          const r = await Api.searchStock(body.symbol_name);
+          const hit = (r.data || []).find(s => s.name === body.symbol_name || s.code === body.symbol_name) || ((r.data || []).length === 1 ? r.data[0] : null);
+          if (hit) {
+            body.symbol_code = hit.code;
+            body.market = hit.market;
+            body.quote_id = hit.quote_id || '';
+            if (hit.category) body.category = hit.category;
+          }
+        } catch { /* ignore */ }
+      }
       const r = await guard(isEdit ? Api.updateTrade(existing.id, body) : Api.addTrade(body));
       if (r.code === 0) {
         closeModal();

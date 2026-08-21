@@ -29,8 +29,11 @@ app.use(express.json({ limit: '8mb' }));
 
 // 鉴权中间件：注入 req.user（标的搜索公开，便于登录页/记一笔联想）
 const requireAuth = (req, res, next) => {
-  if (req.method === 'GET' && req.path === '/symbols/search') return next();
   const user = auth.getUserFromToken(req.cookies[auth.COOKIE_NAME]);
+  if (req.method === 'GET' && req.path === '/symbols/search') {
+    req.user = user || null;
+    return next();
+  }
   if (!user) return res.status(401).json({ code: 1, message: '未登录或会话已过期' });
   req.user = user;
   next();

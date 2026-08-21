@@ -3,9 +3,23 @@ const express = require('express');
 const db = require('../db');
 const router = express.Router();
 
-const uid = (req) => req.user.id;
+const uid = (req) => req.user && req.user.id;
 const CATS = ['stock', 'fund', 'future', 'bond', 'other'];
 const ACTIONS = ['open', 'add', 'reduce', 'close', 'dividend', 'fee'];
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const EM_TOKEN = 'FAKESECRET_k3l4m5n6o7p8q9r0s1t2';
+
+async function httpText(url, referer) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': BROWSER_UA,
+      Referer: referer || 'https://www.eastmoney.com/',
+      Accept: '*/*'
+    },
+    signal: AbortSignal.timeout(6000)
+  });
+  return res.text();
+}
 
 function sinaSymbol(code, market) {
   const raw = String(code || '').trim();
@@ -22,45 +36,127 @@ function sinaSymbol(code, market) {
   return null;
 }
 
-async function fetchStockSearch(keyword) {
-  if (!keyword || keyword.length < 1) return [];
-  try {
-    const url = 'https://smartbox.gtimg.cn/s3/?q=' + encodeURIComponent(keyword) + '&t=all&c=1';
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const text = await res.text();
-    const match = text.match(/v_hint="([^"]*)"/);
-    if (!match || !match[1]) return [];
-    return match[1].split('^').map(item => {
-      const parts = item.split('~');
-      if (parts.length < 3) return null;
-      const marketRaw = (parts[0] || '').toLowerCase();
-      const code = parts[1] || '';
-      const name = parts[2] || '';
-      const typeCode = parts[4] || '';
-      let market = '', category = 'stock';
-      if (marketRaw === 'sh') market = 'SH';
-      else if (marketRaw === 'sz') market = 'SZ';
-      else if (marketRaw === 'hk') market = 'HK';
-      else if (marketRaw === 'us') market = 'US';
-      else if (marketRaw === 'jj') { market = 'FUND'; category = 'fund'; }
-      if (typeCode.includes('ETF') || typeCode.includes('LOF')) category = 'fund';
-      else if (typeCode.includes('KJ')) category = 'bond';
-      else if (typeCode.includes('QZ')) category = 'other';
-      return { code, name, market, category };
-    }).filter(s => s && s.name && s.code);
-  } catch (e) {
-    console.error('[stock-search]', e.message);
-    return [];
+function mapQuoteId(quoteId, typeName, classify) {
+  let market = 'SH';
+  let category = 'stock';
+  const qid = String(quoteId || '');
+  const tn = typeName || '';
+  const cl = (classify || '').toLowerCase();
+  if (qid.startsWith('1.')) market = 'SH';
+  else if (qid.startsWith('0.')) market = 'SZ';
+  else if (qid.startsWith('116.') || qid.startsWith('128.') || qid.startsWith('151.')) market = 'HK';
+  else if (qid.startsWith('105.') || qid.startsWith('106.') || qid.startsWith('107.')) market = 'US';
+  if (cl.includes('fund') || /基金|ETF|LOF/.test(tn)) category = 'fund';
+  else if (cl.includes('bond') || /债/.test(tn)) category = 'bond';
+  else if (cl.includes('future') || /期货/.test(tn)) category = 'future';
+  else if (/港/.test(tn)) { category = 'stock'; market = 'HK'; }
+  else if (/美/.test(tn)) { category = 'stock'; market = 'US'; }
+  return { market, category };
+}
+
+function parseExtra(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw) || {}; } catch { return {}; }
+}
+
+async function searchEastMoney(keyword) {
+  const url = 'https://searchapi.eastmoney.com/api/suggest/get?input=' +
+    encodeURIComponent(keyword) + '&type=14&token=' + EM_TOKEN + '&count=12';
+  const text = await httpText(url, 'https://www.eastmoney.com/');
+  let json;
+  try { json = JSON.parse(text); } catch { return []; }
+  const rows = (json.QuotationCodeTable && json.QuotationCodeTable.Data) || [];
+  return rows.map(item => {
+    const cl = item.Classify || '';
+    if (cl === 'NEEQ' || cl === 'Index') return null;
+    const mapped = mapQuoteId(item.QuoteID, item.SecurityTypeName, cl);
+    const code = String(item.Code || item.UnifiedCode || '').trim();
+    const name = String(item.Name || '').trim();
+    if (!code || !name) return null;
+    return {
+      code, name, market: mapped.market, category: mapped.category,
+      quote_id: item.QuoteID || '', source: 'eastmoney',
+      type_name: item.SecurityTypeName || labelByCat(mapped.category)
+    };
+  }).filter(Boolean);
+}
+
+async function searchTencent(keyword) {
+  const url = 'https://smartbox.gtimg.cn/s3/?q=' + encodeURIComponent(keyword) + '&t=all&c=1';
+  const text = await httpText(url, 'https://stockapp.finance.qq.com/');
+  const match = text.match(/v_hint="([^"]*)"/);
+  if (!match || !match[1]) return [];
+  return match[1].split('^').map(item => {
+    const parts = item.split('~');
+    if (parts.length < 3) return null;
+    const marketRaw = (parts[0] || '').toLowerCase();
+    const code = parts[1] || '';
+    const name = parts[2] || '';
+    const typeCode = parts[4] || '';
+    let market = 'SH', category = 'stock', quote_id = '';
+    if (marketRaw === 'sh') { market = 'SH'; quote_id = '1.' + code; }
+    else if (marketRaw === 'sz') { market = 'SZ'; quote_id = '0.' + code; }
+    else if (marketRaw === 'hk') { market = 'HK'; quote_id = '116.' + code; }
+    else if (marketRaw === 'us') { market = 'US'; }
+    else if (marketRaw === 'jj') { market = 'FUND'; category = 'fund'; }
+    if (typeCode.includes('ETF') || typeCode.includes('LOF')) category = 'fund';
+    else if (typeCode.includes('KJ')) category = 'bond';
+    else if (typeCode.includes('QZ')) category = 'other';
+    return { code, name, market, category, quote_id, source: 'tencent', type_name: '' };
+  }).filter(s => s && s.name && s.code);
+}
+
+function searchLocal(userId, keyword) {
+  if (!userId) return [];
+  const like = '%' + keyword + '%';
+  return db.prepare(`
+    SELECT id AS symbol_id, code, name, market, category, extra
+    FROM symbols WHERE user_id = ? AND (name LIKE ? OR code LIKE ?)
+    ORDER BY name LIMIT 8
+  `).all(userId, like, like).map(s => {
+    const extra = parseExtra(s.extra);
+    return {
+      code: s.code, name: s.name, market: s.market || '',
+      category: s.category, quote_id: extra.quote_id || '',
+      symbol_id: s.symbol_id, source: 'local', type_name: '已添加'
+    };
+  }).filter(s => s.name);
+}
+
+function dedupeSymbols(list) {
+  const seen = new Set();
+  const out = [];
+  for (const s of list) {
+    const key = (s.market || '') + '|' + String(s.code || '').toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
   }
+  return out;
+}
+
+function labelByCat(c) {
+  return ({ stock: '股票', fund: '基金', future: '期货', bond: '债券', other: '其他' }[c] || c);
+}
+
+async function fetchStockSearch(keyword, userId) {
+  if (!keyword || keyword.length < 1) return [];
+  const local = searchLocal(userId, keyword);
+  let remote = [];
+  try { remote = await searchEastMoney(keyword); } catch (e) {
+    console.error('[stock-search][eastmoney]', e.message);
+  }
+  if (!remote.length) {
+    try { remote = await searchTencent(keyword); } catch (e) {
+      console.error('[stock-search][tencent]', e.message);
+    }
+  }
+  return dedupeSymbols([...local, ...remote]).slice(0, 12);
 }
 
 async function trySina(symbol) {
-  const url = 'https://hq.sinajs.cn/list=' + symbol;
-  const res = await fetch(url, {
-    headers: { Referer: 'https://finance.sina.com.cn/' },
-    signal: AbortSignal.timeout(5000)
-  });
-  const text = await res.text();
+  const text = await httpText('https://hq.sinajs.cn/list=' + symbol, 'https://finance.sina.com.cn/');
   const match = text.match(/="([^"]+)"/);
   if (!match || !match[1] || match[1] === 'FAILED') return null;
   const fields = match[1].split(',');
@@ -74,23 +170,43 @@ async function trySina(symbol) {
   return isNaN(price) || price <= 0 ? null : { price, name, raw: symbol };
 }
 
+async function tryTencentQuote(symbol) {
+  const text = await httpText('https://qt.gtimg.cn/q=' + symbol, 'https://gu.qq.com/');
+  const match = text.match(/="([^"]+)"/);
+  if (!match || !match[1]) return null;
+  const parts = match[1].split('~');
+  const price = parseFloat(parts[3]);
+  const name = parts[1] || '';
+  return isNaN(price) || price <= 0 ? null : { price, name, raw: symbol };
+}
+
+function quoteCandidates(code, market) {
+  const tries = [];
+  const primary = sinaSymbol(code, market);
+  if (primary) tries.push(primary);
+  if (!primary && /^\d{6}$/.test(String(code))) {
+    const c = String(code);
+    tries.push((c.startsWith('6') || c.startsWith('9') ? 'sh' : 'sz') + c);
+  }
+  const digits = String(code || '').replace(/\D/g, '');
+  if (digits.length >= 6) {
+    const fund = 'f_' + digits;
+    if (!tries.includes(fund)) tries.push(fund);
+  }
+  return tries;
+}
+
 async function fetchRealtimePrice(code, market) {
   try {
-    const tries = [];
-    const primary = sinaSymbol(code, market);
-    if (primary) tries.push(primary);
-    if (!primary && /^\d{6}$/.test(String(code))) {
-      const c = String(code);
-      tries.push((c.startsWith('6') || c.startsWith('9') ? 'sh' : 'sz') + c);
-    }
-    const digits = String(code || '').replace(/\D/g, '');
-    if (digits.length >= 6) {
-      const fund = 'f_' + digits;
-      if (!tries.includes(fund)) tries.push(fund);
-    }
-    for (const symbol of tries) {
-      const quote = await trySina(symbol);
-      if (quote) return quote;
+    for (const symbol of quoteCandidates(code, market)) {
+      try {
+        const quote = await trySina(symbol);
+        if (quote) return quote;
+      } catch { /* next */ }
+      try {
+        const quote = await tryTencentQuote(symbol);
+        if (quote) return quote;
+      } catch { /* next */ }
     }
     return null;
   } catch (e) {
@@ -99,8 +215,20 @@ async function fetchRealtimePrice(code, market) {
   }
 }
 
+function persistQuoteMeta(symbolId, b) {
+  const quoteId = (b.quote_id || '').trim();
+  const market = (b.market || '').trim();
+  const code = (b.symbol_code || '').trim();
+  if (!quoteId && !market && !code) return;
+  const row = db.prepare('SELECT extra, market, code FROM symbols WHERE id = ?').get(symbolId);
+  const extra = parseExtra(row && row.extra);
+  if (quoteId) extra.quote_id = quoteId;
+  db.prepare('UPDATE symbols SET extra = ?, market = COALESCE(NULLIF(?, ""), market), code = COALESCE(NULLIF(?, ""), code) WHERE id = ?')
+    .run(JSON.stringify(extra), market, code, symbolId);
+}
+
 function resolveSymbolId(userId, b) {
-  const { account_id, symbol_id, symbol_name, symbol_code, category, market, direction, multiplier } = b;
+  const { symbol_id, symbol_name, symbol_code, category, market, direction, multiplier } = b;
   let sid = symbol_id ? parseInt(symbol_id, 10) : null;
   const code = (symbol_code || '').trim();
   const name = (symbol_name || '').trim();
@@ -109,45 +237,46 @@ function resolveSymbolId(userId, b) {
   if (sid) {
     const sym = db.prepare('SELECT id FROM symbols WHERE id = ? AND user_id = ?').get(sid, userId);
     if (!sym) return { error: '标的不存在' };
-    if (code || market) {
-      db.prepare('UPDATE symbols SET code = COALESCE(NULLIF(?, ""), code), market = COALESCE(NULLIF(?, ""), market) WHERE id = ? AND user_id = ?')
-        .run(code, market || '', sid, userId);
-    }
+    persistQuoteMeta(sid, b);
     return { sid };
   }
 
   if (code) {
     const byCode = db.prepare('SELECT id FROM symbols WHERE user_id = ? AND code = ? AND category = ?').get(userId, code, cat);
     if (byCode) {
-      if (name) db.prepare('UPDATE symbols SET name = ?, market = COALESCE(NULLIF(?, ""), market) WHERE id = ?').run(name, market || '', byCode.id);
+      if (name) db.prepare('UPDATE symbols SET name = ? WHERE id = ?').run(name, byCode.id);
+      persistQuoteMeta(byCode.id, b);
       return { sid: byCode.id };
     }
   }
   if (name) {
     if (!CATS.includes(cat)) return { error: '分类必填且需为 stock/fund/future/bond/other' };
+    const extra = b.quote_id ? JSON.stringify({ quote_id: b.quote_id }) : null;
     const existing = db.prepare('SELECT id FROM symbols WHERE user_id = ? AND name = ? AND category = ?')
       .get(userId, name, cat);
     if (existing) {
-      if (code || market) {
-        db.prepare('UPDATE symbols SET code = COALESCE(NULLIF(?, ""), code), market = COALESCE(NULLIF(?, ""), market) WHERE id = ?')
-          .run(code, market || '', existing.id);
-      }
+      persistQuoteMeta(existing.id, b);
       return { sid: existing.id };
     }
-    const info = db.prepare(`INSERT INTO symbols (user_id, category, code, name, market, direction, multiplier, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(userId, cat, code, name, market || '', direction || 'long', multiplier ? parseFloat(multiplier) : 1, Date.now());
+    const info = db.prepare(`INSERT INTO symbols (user_id, category, code, name, market, direction, multiplier, extra, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(userId, cat, code, name, market || '', direction || 'long', multiplier ? parseFloat(multiplier) : 1, extra, Date.now());
     return { sid: info.lastInsertRowid };
   }
   return { error: '标的不存在，请输入标的名称' };
 }
 
 router.get('/symbols/search', async (req, res) => {
-  const { q, cat } = req.query;
-  if (!q || q.trim().length < 1) return res.json({ code: 0, data: [] });
-  const results = await fetchStockSearch(q.trim());
-  const filtered = cat ? results.filter(r => r.category === cat) : results;
-  res.json({ code: 0, data: filtered.slice(0, 15) });
+  try {
+    const { q, cat } = req.query;
+    if (!q || q.trim().length < 1) return res.json({ code: 0, data: [] });
+    const results = await fetchStockSearch(q.trim(), uid(req));
+    const filtered = cat ? results.filter(r => r.category === cat) : results;
+    res.json({ code: 0, data: filtered.slice(0, 12) });
+  } catch (e) {
+    console.error('[symbols/search]', e.message);
+    res.json({ code: 0, data: [], message: '搜索服务暂时不可用' });
+  }
 });
 
 router.get('/prices/realtime', async (req, res) => {
